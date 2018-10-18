@@ -1,4 +1,4 @@
-# food
+# Citizenship Helper
 Canadian citizenship testing web app
 
 ## Clone the repo
