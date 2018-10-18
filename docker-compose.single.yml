@@ -1,0 +1,66 @@
+version: '3'
+
+services:
+  probe:
+    image: trolleksii/ansible_db_probe
+    depends_on:
+      - citizen_db
+    environment:
+      - PROBE_HOST=citizen_db
+      - PROBE_PORT=5432
+      
+  citizen_db:
+    image: postgres
+    container_name: citizen_db
+    restart: always
+    env_file:
+      - ./citizenship.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db:/var/lib/postgresql/data/
+
+  citizen-backend:
+    build: './backend'
+    container_name: citizen_backend
+    working_dir: /app
+    env_file:
+      - ./citizenship.env
+    command: >
+      sh -c "python manage.py collectstatic --noinput
+      && cp -Rf /app/static/* /static
+      && python manage.py migrate
+      && python manage.py init_admin 
+      && gunicorn -w 5 --bind 0.0.0.0:8000 cit.wsgi:application"
+    expose:
+      - "8000"
+    volumes:
+      - ./www/static/:/static
+      - ./backend/citizenrest:/app/
+    depends_on:
+      - citizen_db
+
+  citizen_frontend:
+    build: './frontend'
+    container_name: citizen_frontend
+    command: >
+      sh -c "npm run build
+      && cp -Rf /app/build/* /www"
+    volumes:
+       - ./www:/www
+    depends_on:
+      - citizen-backend
+
+  nginx:
+    image: nginx:latest
+    container_name: citizen_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx:/etc/nginx
+      - ./www:/app
+    env_file:
+      - ./citizenship.env
+    depends_on:
+      - citizen_frontend
+    command: /bin/bash -c "envsubst '$$PRODUCTION_HOST' < /etc/nginx/conf.d/site.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"

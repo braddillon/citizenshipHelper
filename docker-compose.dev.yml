@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+  probe:
+    image: trolleksii/ansible_db_probe
+    depends_on:
+      - citizen_db
+    environment:
+      - PROBE_HOST=citizen_db
+      - PROBE_PORT=5432
+
+  citizen_db:
+    image: postgres
+    container_name: citizen_db_dev
+    restart: always
+    env_file:
+      - ./citizenship.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db:/var/lib/postgresql/data/
+
+  citizen-backend:
+    build: './backend'
+    container_name: citizen_backend_dev
+    working_dir: /app
+    env_file:
+      - ./citizenship.env
+    command: >
+      sh -c "python manage.py migrate
+      && python manage.py init_admin 
+      && python manage.py runserver 0.0.0.0:80"
+    ports:
+      - "80:80"
+    volumes:
+      - ./backend/citizenrest:/app/
+    depends_on:
+      - citizen_db
+
+  citizen_frontend:
+    build: './frontend'
+    container_name: citizen_frontend_dev
+    working_dir: /app
+    command: >
+      sh -c "npm run start"
+    volumes:
+       - ./frontend/citizen/src:/app/src/
+       - ./frontend/citizen/public:/app/public/
+    ports:
+      - "3000:3000"
+    depends_on:
+      - citizen-backend
