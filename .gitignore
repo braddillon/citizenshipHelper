@@ -3,9 +3,10 @@ db
 #src
 docker-compose.yml
 
-citizneship.env
+citizenship.env
 letsEncrypt.env
 
+static/
 
 
 # Byte-compiled / optimized / DLL files
